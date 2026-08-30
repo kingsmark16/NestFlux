@@ -1,0 +1,8 @@
+{
+  "name": "nestflux",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A microservice-based file ingestion and image processing platform.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.1.0"
+}

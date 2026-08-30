@@ -1,0 +1,34 @@
+# Installed dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Compiled and generated output
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Local file-processing data
+storage/
+uploads/
+tmp/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Editor-specific files
+.idea/
+.vscode/

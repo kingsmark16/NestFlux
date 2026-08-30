@@ -1,0 +1,6 @@
+# Use Linux-style line endings for normal text files.
+* text=auto eol=lf
+
+# Keep Windows command scripts compatible with traditional Windows tools.
+*.bat text eol=crlf
+*.cmd text eol=crlf
