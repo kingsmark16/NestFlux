@@ -137,6 +137,30 @@ Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/health/ready' -Method Get
 
 Liveness returns `200` while the Nest process is running. Readiness runs `SELECT 1` against PostgreSQL. It returns `200` when PostgreSQL accepts the query and `503` when it does not. Readiness does not check RabbitMQ yet.
 
+## Create and list asset records
+
+The asset endpoints store upload metadata in PostgreSQL. They do not accept file bytes, create files, authenticate callers, or publish RabbitMQ jobs yet.
+
+Start the Gateway, then create an asset record from a second PowerShell terminal:
+
+```powershell
+$asset = @{
+  originalFilename = 'sunset.jpg'
+  contentType = 'image/jpeg'
+  sizeBytes = 1024
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/v1/assets' -ContentType 'application/json' -Body $asset
+```
+
+The Gateway returns `201` with a `PENDING` asset. It generates the `storageKey`; request data cannot set it. List stored assets with:
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/assets'
+```
+
+Invalid metadata or extra properties return `400`. `sizeBytes` must be an integer from `1` through `2147483647`.
+
 A global validation pipe rejects unknown request properties when a route uses data transfer objects.
 
 Press `Ctrl+C` to stop the service. Nest handles the `SIGINT` signal and runs registered shutdown hooks before the process exits.
@@ -166,6 +190,10 @@ The generated source has these entry points:
 - `src/configure-http-app.ts`: applies the route prefix and global validation
 - `src/database/database.module.ts`: shares database access with feature modules
 - `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
+- `src/assets/assets.module.ts`: owns asset record behavior
+- `src/assets/assets.controller.ts`: exposes the asset HTTP routes
+- `src/assets/assets.service.ts`: creates and lists Gateway-owned asset records
+- `src/assets/dto/create-asset.dto.ts`: validates asset creation requests
 - `src/health/health.module.ts`: owns the health feature
 - `src/health/health.controller.ts`: exposes liveness and readiness routes
 - `prisma.config.ts`: loads the root database URL for Prisma commands
@@ -177,4 +205,4 @@ Future features will use focused Nest modules instead of adding unrelated behavi
 
 ## Treat deployment as unfinished
 
-Do not deploy the gateway as a production service yet. Later lessons will add database access, RabbitMQ messaging, image processing, containerization, and production infrastructure.
+Do not deploy the gateway as a production service yet. Later lessons will add authentication, RabbitMQ messaging, image processing, containerization, and production infrastructure.
