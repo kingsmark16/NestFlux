@@ -32,3 +32,6 @@ Thumbs.db
 # Editor-specific files
 .idea/
 .vscode/
+
+# Prisma generated client
+apps/api-gateway/generated/

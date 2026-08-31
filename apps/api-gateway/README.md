@@ -66,6 +66,26 @@ docker compose down
 
 `docker compose down` preserves the `postgres-data` volume. Do not add `-v` unless you intend to delete the local database.
 
+## Manage the gateway database schema
+
+Prisma stores the Gateway's schema in `prisma/schema.prisma` and database settings in `prisma.config.ts`. The first migration creates `Asset` records and their processing states.
+
+Validate the schema and inspect migration state:
+
+```powershell
+pnpm --filter '@nestflux/api-gateway' prisma:validate
+pnpm --filter '@nestflux/api-gateway' prisma:migrate:status
+```
+
+Create a migration during local development after changing the schema, then regenerate the Prisma client:
+
+```powershell
+pnpm --filter '@nestflux/api-gateway' prisma:migrate:dev -- --name add_asset_field
+pnpm --filter '@nestflux/api-gateway' prisma:generate
+```
+
+Use `prisma:migrate:deploy` only outside local development. It applies committed migrations without creating new ones. Generated Prisma client code stays ignored because the schema recreates it.
+
 ## Configure gateway startup
 
 The gateway validates these environment variables before it opens an HTTP port. You may omit all three during local development.
@@ -144,6 +164,9 @@ The generated source has these entry points:
 - `src/configure-http-app.ts`: applies the route prefix and global validation
 - `src/health/health.module.ts`: owns the health feature
 - `src/health/health.controller.ts`: exposes liveness and readiness routes
+- `prisma.config.ts`: loads the root database URL for Prisma commands
+- `prisma/schema.prisma`: defines the Gateway-owned data model
+- `prisma/migrations/`: records ordered PostgreSQL schema changes
 - `test/app.e2e-spec.ts`: tests the HTTP request path
 
 Future features will use focused Nest modules instead of adding unrelated behavior to the root files.
