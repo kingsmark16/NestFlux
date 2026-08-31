@@ -1,6 +1,6 @@
-# Develop the NestFlux API Gateway
+# Run the NestFlux API Gateway
 
-The NestFlux API Gateway is the public Hypertext Transfer Protocol (HTTP) boundary for the platform. This guide explains its responsibility, local commands, and current scaffold state.
+The NestFlux API Gateway is the public Hypertext Transfer Protocol (HTTP) boundary for the platform. This guide explains the service boundary, validated startup configuration, and local commands.
 
 ## Understand the service boundary
 
@@ -33,6 +33,26 @@ Install all workspace dependencies:
 pnpm install
 ```
 
+## Configure gateway startup
+
+The gateway validates these environment variables before it opens an HTTP port. You may omit all three during local development.
+
+| Variable | Default | Accepted value |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | `development`, `test`, or `production` |
+| `PORT` | `3000` | An integer from `1` through `65535` |
+| `API_PREFIX` | `api/v1` | Lowercase path segments, such as `api/v2` |
+
+Set custom values in PowerShell before starting the service:
+
+```powershell
+$env:PORT = '3100'
+$env:API_PREFIX = 'api/v2'
+pnpm --filter '@nestflux/api-gateway' start:prod
+```
+
+An invalid value stops startup and reports every invalid variable. The gateway does not open a port when configuration validation fails.
+
 ## Run the gateway locally
 
 Start the gateway in watch mode:
@@ -41,13 +61,15 @@ Start the gateway in watch mode:
 pnpm --filter '@nestflux/api-gateway' start:dev
 ```
 
-The current scaffold listens on port `3000`. Call its placeholder endpoint from another PowerShell terminal:
+The default service listens on port `3000` and exposes the `api/v1` prefix. Call its placeholder endpoint from another PowerShell terminal:
 
 ```powershell
-Invoke-RestMethod -Uri 'http://localhost:3000/' -Method Get
+Invoke-RestMethod -Uri 'http://localhost:3000/api/v1' -Method Get
 ```
 
-The endpoint currently returns `Hello World!`. A later lesson will replace it with health and versioned Application Programming Interface (API) routes.
+The endpoint currently returns `Hello World!`. A global validation pipe already rejects unknown request properties when a route uses data transfer objects.
+
+Press `Ctrl+C` to stop the service. Nest handles the `SIGINT` signal and runs registered shutdown hooks before the process exits.
 
 ## Validate gateway changes
 
@@ -71,10 +93,13 @@ The generated source has these entry points:
 - `src/app.controller.ts`: exposes the placeholder HTTP route
 - `src/app.service.ts`: returns the placeholder response
 - `src/app.controller.spec.ts`: tests the controller in isolation
+- `src/config/app.config.ts`: exposes namespaced application configuration
+- `src/config/environment.validation.ts`: validates startup variables
+- `src/configure-http-app.ts`: applies the route prefix and global validation
 - `test/app.e2e-spec.ts`: tests the HTTP request path
 
 Future features will use focused Nest modules instead of adding unrelated behavior to the root files.
 
 ## Treat deployment as unfinished
 
-Do not deploy the scaffold as a production service. Later lessons will add configuration validation, request validation, health checks, graceful shutdown, containerization, and production infrastructure.
+Do not deploy the scaffold as a production service. Later lessons will add health checks, database access, RabbitMQ messaging, image processing, containerization, and production infrastructure.
