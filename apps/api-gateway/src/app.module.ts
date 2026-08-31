@@ -5,6 +5,7 @@ import { environmentValidationSchema } from './config/environment.validation.js'
 import { HealthModule } from './health/health.module.js';
 import { databaseConfig } from './config/database.config.js';
 import { AssetsModule } from './assets/assets.module.js';
+import { rabbitmqConfig } from './config/rabbitmq.config.js';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { AssetsModule } from './assets/assets.module.js';
       isGlobal: true,
       cache: true,
       envFilePath: '../../.env',
-      load: [appConfig, databaseConfig],
+      load: [appConfig, databaseConfig, rabbitmqConfig],
       validationSchema: environmentValidationSchema,
     }),
     HealthModule,

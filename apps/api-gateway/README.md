@@ -66,6 +66,35 @@ docker compose down
 
 `docker compose down` preserves the `postgres-data` volume. Do not add `-v` unless you intend to delete the local database.
 
+## Run local RabbitMQ
+
+The same `compose.yaml` starts RabbitMQ 4.3.5 with its management plugin. AMQP binds to `127.0.0.1:5672`, and the management interface binds to `127.0.0.1:15672`. Neither port is exposed beyond your computer.
+
+Set `RABBITMQ_DEFAULT_PASS` and the matching password inside `RABBITMQ_URL` in your ignored root `.env` file. Use a password that differs from your PostgreSQL password.
+
+Start RabbitMQ and wait until its health check reports `healthy`:
+
+```powershell
+docker compose up -d rabbitmq
+docker compose ps
+```
+
+Verify the broker, local user, and virtual host without printing the password:
+
+```powershell
+docker compose exec rabbitmq rabbitmq-diagnostics -q ping
+docker compose exec rabbitmq rabbitmqctl list_users
+docker compose exec rabbitmq rabbitmqctl list_vhosts name
+```
+
+Open the management interface, then sign in with `RABBITMQ_DEFAULT_USER` and `RABBITMQ_DEFAULT_PASS` from your ignored `.env` file:
+
+```powershell
+Start-Process 'http://localhost:15672'
+```
+
+RabbitMQ stores durable broker state in the `rabbitmq-data` volume. `docker compose down` preserves that volume. Do not add `-v` unless you intend to delete both local database and broker data.
+
 ## Manage the gateway database schema
 
 Prisma stores the Gateway's schema in `prisma/schema.prisma` and database settings in `prisma.config.ts`. The first migration creates `Asset` records and their processing states.
@@ -88,14 +117,15 @@ Use `prisma:migrate:deploy` only outside local development. It applies committed
 
 ## Configure gateway startup
 
-The gateway validates these environment variables before it opens an HTTP port. The root `.env` file must define `DATABASE_URL` during local development.
+The gateway validates these environment variables before it opens an HTTP port. The root `.env` file must define `DATABASE_URL` and `RABBITMQ_URL` during local development.
 
-| Variable | Default | Accepted value |
-| --- | --- | --- |
-| `NODE_ENV` | `development` | `development`, `test`, or `production` |
-| `PORT` | `3000` | An integer from `1` through `65535` |
-| `API_PREFIX` | `api/v1` | Lowercase path segments, such as `api/v2` |
-| `DATABASE_URL` | None | A PostgreSQL connection URL |
+| Variable       | Default       | Accepted value                            |
+| -------------- | ------------- | ----------------------------------------- |
+| `NODE_ENV`     | `development` | `development`, `test`, or `production`    |
+| `PORT`         | `3000`        | An integer from `1` through `65535`       |
+| `API_PREFIX`   | `api/v1`      | Lowercase path segments, such as `api/v2` |
+| `DATABASE_URL` | None          | A PostgreSQL connection URL               |
+| `RABBITMQ_URL` | None          | An `amqp://` or `amqps://` broker URL     |
 
 Set custom values in PowerShell before starting the service:
 
@@ -214,6 +244,7 @@ The generated source has these entry points:
 - `src/app.module.ts`: defines the root Nest module
 - `src/config/app.config.ts`: exposes namespaced application configuration
 - `src/config/database.config.ts`: exposes the PostgreSQL connection URL
+- `src/config/rabbitmq.config.ts`: exposes the RabbitMQ connection URL
 - `src/config/environment.validation.ts`: validates startup variables
 - `src/configure-http-app.ts`: applies the route prefix and global validation
 - `src/database/database.module.ts`: shares database access with feature modules
