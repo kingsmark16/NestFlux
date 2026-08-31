@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { CreateAssetDto } from './dto/create-asset.dto.js';
 import { randomUUID } from 'node:crypto';
@@ -22,5 +22,19 @@ export class AssetsService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async findOne(id: string) {
+    const asset = await this.prisma.asset.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Asset not found');
+    }
+
+    return asset;
   }
 }

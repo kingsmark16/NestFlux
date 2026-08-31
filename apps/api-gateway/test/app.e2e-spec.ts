@@ -73,6 +73,15 @@ describe('API Gateway (e2e)', () => {
       storageKey: expect.stringMatching(/^assets\//),
     });
 
+    const findResponse = await request(app.getHttpServer())
+      .get(`/api/v1/assets/${createdAssetId}`)
+      .expect(200);
+
+    expect(findResponse.body).toMatchObject({
+      id: createdAssetId,
+      originalFilename: 'sunset.jpg',
+    });
+
     const listResponse = await request(app.getHttpServer())
       .get('/api/v1/assets')
       .expect(200);
@@ -96,5 +105,16 @@ describe('API Gateway (e2e)', () => {
         storageKey: 'client-selected-key',
       })
       .expect(400);
+  });
+
+  it('/api/v1/assets/:id (GET) returns 404 for an unknown asset', () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/assets/missing_asset')
+      .expect(404)
+      .expect({
+        message: 'Asset not found',
+        error: 'Not Found',
+        statusCode: 404,
+      });
   });
 });

@@ -159,6 +159,15 @@ The Gateway returns `201` with a `PENDING` asset. It generates the `storageKey`;
 Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/assets'
 ```
 
+Retrieve one asset with its returned `id`:
+
+```powershell
+$assetId = 'asset_id_from_previous_post'
+Invoke-RestMethod -Uri "http://localhost:3000/api/v1/assets/$assetId"
+```
+
+An unknown asset ID returns `404` with `Asset not found`.
+
 Invalid metadata or extra properties return `400`. `sizeBytes` must be an integer from `1` through `2147483647`.
 
 A global validation pipe rejects unknown request properties when a route uses data transfer objects.

@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../database/prisma.service.js';
 import { AssetsService } from './assets.service.js';
@@ -9,6 +10,7 @@ describe('AssetsService', () => {
     asset: {
       create: vi.fn(),
       findMany: vi.fn(),
+      findUnique: vi.fn(),
     },
   };
 
@@ -26,6 +28,7 @@ describe('AssetsService', () => {
   beforeEach(async () => {
     prisma.asset.create.mockReset();
     prisma.asset.findMany.mockReset();
+    prisma.asset.findUnique.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,5 +74,25 @@ describe('AssetsService', () => {
         createdAt: 'desc',
       },
     });
+  });
+
+  it('finds one asset by its primary key', async () => {
+    prisma.asset.findUnique.mockResolvedValue(asset);
+
+    await expect(service.findOne(asset.id)).resolves.toEqual(asset);
+
+    expect(prisma.asset.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: asset.id,
+      },
+    });
+  });
+
+  it('throws 404 when an asset does not exist', async () => {
+    prisma.asset.findUnique.mockResolvedValue(null);
+
+    await expect(service.findOne('missing_asset')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
