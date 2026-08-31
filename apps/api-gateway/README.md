@@ -33,6 +33,39 @@ Install all workspace dependencies:
 pnpm install
 ```
 
+## Run local PostgreSQL
+
+The repository's `compose.yaml` starts the PostgreSQL database that the API Gateway will own. It binds PostgreSQL to `127.0.0.1:5432`, so the database accepts connections only from your computer.
+
+Create your ignored local configuration from the tracked template, then replace the password in both `POSTGRES_PASSWORD` and `DATABASE_URL`:
+
+```powershell
+Copy-Item .\.env.example .\.env
+code .\.env
+```
+
+Start PostgreSQL and wait for its health check:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+The `postgres` service must show `healthy` before you connect to it. Verify the configured database and role without printing a password:
+
+```powershell
+docker compose exec postgres pg_isready -U nestflux -d nestflux
+docker compose exec postgres psql -U nestflux -d nestflux -c 'SELECT current_database(), current_user;'
+```
+
+Stop the container when you do not need it:
+
+```powershell
+docker compose down
+```
+
+`docker compose down` preserves the `postgres-data` volume. Do not add `-v` unless you intend to delete the local database.
+
 ## Configure gateway startup
 
 The gateway validates these environment variables before it opens an HTTP port. You may omit all three during local development.
