@@ -34,4 +34,4 @@ Thumbs.db
 .vscode/
 
 # Prisma generated client
-apps/api-gateway/generated/
+apps/api-gateway/src/generated/

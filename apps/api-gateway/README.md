@@ -88,13 +88,14 @@ Use `prisma:migrate:deploy` only outside local development. It applies committed
 
 ## Configure gateway startup
 
-The gateway validates these environment variables before it opens an HTTP port. You may omit all three during local development.
+The gateway validates these environment variables before it opens an HTTP port. The root `.env` file must define `DATABASE_URL` during local development.
 
 | Variable | Default | Accepted value |
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development`, `test`, or `production` |
 | `PORT` | `3000` | An integer from `1` through `65535` |
 | `API_PREFIX` | `api/v1` | Lowercase path segments, such as `api/v2` |
+| `DATABASE_URL` | None | A PostgreSQL connection URL |
 
 Set custom values in PowerShell before starting the service:
 
@@ -134,7 +135,7 @@ Use the readiness endpoint before routing traffic to the gateway:
 Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/health/ready' -Method Get
 ```
 
-Both endpoints return `200` while the Nest process is running. Readiness does not check a database or RabbitMQ yet because this lesson has not added either dependency. Later lessons will extend readiness to verify the services that must be available before the gateway accepts traffic.
+Liveness returns `200` while the Nest process is running. Readiness runs `SELECT 1` against PostgreSQL. It returns `200` when PostgreSQL accepts the query and `503` when it does not. Readiness does not check RabbitMQ yet.
 
 A global validation pipe rejects unknown request properties when a route uses data transfer objects.
 
@@ -160,8 +161,11 @@ The generated source has these entry points:
 - `src/main.ts`: creates and starts the Nest application
 - `src/app.module.ts`: defines the root Nest module
 - `src/config/app.config.ts`: exposes namespaced application configuration
+- `src/config/database.config.ts`: exposes the PostgreSQL connection URL
 - `src/config/environment.validation.ts`: validates startup variables
 - `src/configure-http-app.ts`: applies the route prefix and global validation
+- `src/database/database.module.ts`: shares database access with feature modules
+- `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
 - `src/health/health.module.ts`: owns the health feature
 - `src/health/health.controller.ts`: exposes liveness and readiness routes
 - `prisma.config.ts`: loads the root database URL for Prisma commands
