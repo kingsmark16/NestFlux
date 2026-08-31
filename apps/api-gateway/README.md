@@ -176,6 +176,19 @@ Invalid metadata or extra properties return `400`. `sizeBytes` must be an intege
 
 The operation returns `404` when the asset does not exist. It returns `409` when another process has already changed the asset from `PENDING`. This prevents two workers from both claiming the same asset.
 
+## Create asset upload events
+
+`AssetEventService` maps a trusted Prisma asset record to the shared `AssetUploadedEvent` contract. It generates a unique event ID and an ISO 8601 timestamp. The service does not connect to RabbitMQ or publish the event yet.
+
+Build the shared contract before checking or building the Gateway from a clean workspace:
+
+```powershell
+pnpm --filter '@nestflux/contracts' test
+pnpm --filter '@nestflux/contracts' build
+pnpm --filter '@nestflux/api-gateway' test
+pnpm --filter '@nestflux/api-gateway' build
+```
+
 A global validation pipe rejects unknown request properties when a route uses data transfer objects.
 
 Press `Ctrl+C` to stop the service. Nest handles the `SIGINT` signal and runs registered shutdown hooks before the process exits.
@@ -208,6 +221,7 @@ The generated source has these entry points:
 - `src/assets/assets.module.ts`: owns asset record behavior
 - `src/assets/assets.controller.ts`: exposes the asset HTTP routes
 - `src/assets/assets.service.ts`: creates and lists Gateway-owned asset records
+- `src/assets/asset-events.service.ts`: maps asset records to shared event contracts
 - `src/assets/dto/create-asset.dto.ts`: validates asset creation requests
 - `src/health/health.module.ts`: owns the health feature
 - `src/health/health.controller.ts`: exposes liveness and readiness routes
