@@ -61,13 +61,29 @@ Start the gateway in watch mode:
 pnpm --filter '@nestflux/api-gateway' start:dev
 ```
 
-The default service listens on port `3000` and exposes the `api/v1` prefix. Call its placeholder endpoint from another PowerShell terminal:
+The default service listens on port `3000` and exposes the `api/v1` prefix. Call the liveness endpoint from another PowerShell terminal:
 
 ```powershell
-Invoke-RestMethod -Uri 'http://localhost:3000/api/v1' -Method Get
+Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/health/live' -Method Get
 ```
 
-The endpoint currently returns `Hello World!`. A global validation pipe already rejects unknown request properties when a route uses data transfer objects.
+The endpoint returns:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+Use the readiness endpoint before routing traffic to the gateway:
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/health/ready' -Method Get
+```
+
+Both endpoints return `200` while the Nest process is running. Readiness does not check a database or RabbitMQ yet because this lesson has not added either dependency. Later lessons will extend readiness to verify the services that must be available before the gateway accepts traffic.
+
+A global validation pipe rejects unknown request properties when a route uses data transfer objects.
 
 Press `Ctrl+C` to stop the service. Nest handles the `SIGINT` signal and runs registered shutdown hooks before the process exits.
 
@@ -90,16 +106,15 @@ The generated source has these entry points:
 
 - `src/main.ts`: creates and starts the Nest application
 - `src/app.module.ts`: defines the root Nest module
-- `src/app.controller.ts`: exposes the placeholder HTTP route
-- `src/app.service.ts`: returns the placeholder response
-- `src/app.controller.spec.ts`: tests the controller in isolation
 - `src/config/app.config.ts`: exposes namespaced application configuration
 - `src/config/environment.validation.ts`: validates startup variables
 - `src/configure-http-app.ts`: applies the route prefix and global validation
+- `src/health/health.module.ts`: owns the health feature
+- `src/health/health.controller.ts`: exposes liveness and readiness routes
 - `test/app.e2e-spec.ts`: tests the HTTP request path
 
 Future features will use focused Nest modules instead of adding unrelated behavior to the root files.
 
 ## Treat deployment as unfinished
 
-Do not deploy the scaffold as a production service. Later lessons will add health checks, database access, RabbitMQ messaging, image processing, containerization, and production infrastructure.
+Do not deploy the gateway as a production service yet. Later lessons will add database access, RabbitMQ messaging, image processing, containerization, and production infrastructure.

@@ -6,7 +6,7 @@ import { AppModule } from '../src/app.module.js';
 import { appConfig } from '../src/config/app.config.js';
 import { configureHttpApp } from '../src/configure-http-app.js';
 
-describe('AppController (e2e)', () => {
+describe('HealthController (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -26,10 +26,17 @@ describe('AppController (e2e)', () => {
     await app.close();
   });
 
-  it('/api/v1 (GET)', () => {
+  it('/api/v1/health/live (GET)', () => {
     return request(app.getHttpServer())
-      .get('/api/v1')
+      .get('/api/v1/health/live')
       .expect(200)
-      .expect('Hello World!');
+      .expect({ status: 'ok' });
+  });
+
+  it('/api/v1/health/ready (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/health/ready')
+      .expect(200)
+      .expect({ status: 'ok' });
   });
 });
