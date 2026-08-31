@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../database/prisma.service.js';
 import { AssetsService } from './assets.service.js';
@@ -11,6 +11,7 @@ describe('AssetsService', () => {
       create: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      updateManyAndReturn: vi.fn(),
     },
   };
 
@@ -29,6 +30,7 @@ describe('AssetsService', () => {
     prisma.asset.create.mockReset();
     prisma.asset.findMany.mockReset();
     prisma.asset.findUnique.mockReset();
+    prisma.asset.updateManyAndReturn.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,6 +95,49 @@ describe('AssetsService', () => {
 
     await expect(service.findOne('missing_asset')).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+
+  it('transitions a pending asset to processing', async () => {
+    const processingAsset = {
+      ...asset,
+      status: 'PROCESSING',
+    };
+
+    prisma.asset.updateManyAndReturn.mockResolvedValue([processingAsset]);
+
+    await expect(service.markProcessing(asset.id)).resolves.toEqual(
+      processingAsset,
+    );
+
+    expect(prisma.asset.updateManyAndReturn).toHaveBeenCalledWith({
+      where: {
+        id: asset.id,
+        status: 'PENDING',
+      },
+      data: {
+        status: 'PROCESSING',
+      },
+    });
+  });
+
+  it('throws 404 when a transition target does not exist', async () => {
+    prisma.asset.updateManyAndReturn.mockResolvedValue([]);
+    prisma.asset.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.markProcessing('missing_asset'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('throws 409 when an asset is no longer pending', async () => {
+    prisma.asset.updateManyAndReturn.mockResolvedValue([]);
+    prisma.asset.findUnique.mockResolvedValue({
+      id: asset.id,
+    });
+
+    await expect(service.markProcessing(asset.id)).rejects.toBeInstanceOf(
+      ConflictException,
     );
   });
 });

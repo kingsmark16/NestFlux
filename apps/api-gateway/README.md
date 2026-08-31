@@ -170,6 +170,12 @@ An unknown asset ID returns `404` with `Asset not found`.
 
 Invalid metadata or extra properties return `400`. `sizeBytes` must be an integer from `1` through `2147483647`.
 
+## Apply asset status transitions
+
+`AssetsService.markProcessing()` is an internal operation for a future trusted RabbitMQ consumer. It transitions an asset from `PENDING` to `PROCESSING` in one PostgreSQL operation. The public HTTP API has no status-change route.
+
+The operation returns `404` when the asset does not exist. It returns `409` when another process has already changed the asset from `PENDING`. This prevents two workers from both claiming the same asset.
+
 A global validation pipe rejects unknown request properties when a route uses data transfer objects.
 
 Press `Ctrl+C` to stop the service. Nest handles the `SIGINT` signal and runs registered shutdown hooks before the process exits.
