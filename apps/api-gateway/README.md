@@ -213,7 +213,15 @@ The operation returns `404` when the asset does not exist. It returns `409` when
 
 `AssetsService.create()` stores the asset and its `OutboxEvent` in one Prisma transaction. The outbox row uses the event ID as its primary key and stores the complete event as JSON. PostgreSQL rolls back both inserts if either insert fails.
 
-`AssetEventsPublisher` connects through the Nest RabbitMQ client and emits typed events with the `asset.uploaded` pattern. The client declares a durable queue and publishes persistent messages. No dispatcher calls the publisher yet, so new outbox rows remain `PENDING` until the dispatch lesson.
+`AssetEventsPublisher` connects through the Nest RabbitMQ client and emits typed events with the `asset.uploaded` pattern. The client declares a durable queue and publishes persistent messages.
+
+## Dispatch recorded asset events
+
+`OutboxDispatcher.dispatchBatch()` claims up to 10 pending events by default. A claim changes the event to `PROCESSING`, records its lock time, and increments its attempt count. Matching the lock time on later updates prevents an expired publisher from overwriting a newer claim.
+
+Successful publication changes the event to `PUBLISHED`. Failed publication returns it to `PENDING` with an exponential retry delay capped at 60 seconds. Abandoned claims can return to `PENDING` after their lease expires.
+
+The dispatcher does not run on a timer yet and has no public HTTP route. New events remain `PENDING` until application scheduling calls `dispatchBatch()`.
 
 Build the shared contract before checking or building the Gateway from a clean workspace:
 
@@ -255,6 +263,9 @@ The generated source has these entry points:
 - `src/messaging/messaging.module.ts`: configures and exports the RabbitMQ client
 - `src/messaging/asset-event.publisher.ts`: publishes typed asset events
 - `src/messaging/messaging.tokens.ts`: identifies the injected RabbitMQ client
+- `src/outbox/outbox.module.ts`: owns outbox claiming and dispatch behavior
+- `src/outbox/outbox.repository.ts`: applies concurrency-safe outbox state changes
+- `src/outbox/outbox-dispatcher.service.ts`: publishes bounded outbox batches
 - `src/database/database.module.ts`: shares database access with feature modules
 - `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
 - `src/assets/assets.module.ts`: owns asset record behavior
@@ -273,4 +284,4 @@ Future features will use focused Nest modules instead of adding unrelated behavi
 
 ## Treat deployment as unfinished
 
-Do not deploy the gateway as a production service yet. Later lessons will add reliable event delivery, a RabbitMQ worker, authentication, image processing, containerization, and production infrastructure.
+Do not deploy the gateway as a production service yet. Later lessons will add dispatch scheduling, a RabbitMQ worker, authentication, image processing, containerization, and production infrastructure.

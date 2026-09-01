@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module.js';
 import { databaseConfig } from './config/database.config.js';
 import { AssetsModule } from './assets/assets.module.js';
 import { rabbitmqConfig } from './config/rabbitmq.config.js';
+import { OutboxModule } from './outbox/outbox.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { rabbitmqConfig } from './config/rabbitmq.config.js';
     }),
     HealthModule,
     AssetsModule,
+    OutboxModule,
   ],
 })
 export class AppModule {}
