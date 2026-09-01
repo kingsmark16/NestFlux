@@ -14,4 +14,7 @@ export const environmentValidationSchema = Joi.object({
   RABBITMQ_URL: Joi.string()
     .uri({ scheme: ['amqp', 'amqps'] })
     .required(),
+  RABBITMQ_ASSET_QUEUE: Joi.string()
+    .pattern(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/)
+    .default('asset-processing'),
 });

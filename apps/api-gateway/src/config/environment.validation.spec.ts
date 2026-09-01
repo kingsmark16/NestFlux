@@ -18,6 +18,7 @@ describe('environmentValidationSchema', () => {
       API_PREFIX: 'api/v1',
       DATABASE_URL: databaseUrl,
       RABBITMQ_URL: rabbitmqUrl,
+      RABBITMQ_ASSET_QUEUE: 'asset-processing',
     });
   });
 
@@ -58,6 +59,14 @@ describe('environmentValidationSchema', () => {
       {
         DATABASE_URL: databaseUrl,
         RABBITMQ_URL: 'http://localhost:15672',
+      },
+    ],
+    [
+      'RABBITMQ_ASSET_QUEUE',
+      {
+        DATABASE_URL: databaseUrl,
+        RABBITMQ_URL: rabbitmqUrl,
+        RABBITMQ_ASSET_QUEUE: 'Asset Processing',
       },
     ],
   ])('rejects an invalid %s value', (field, environment) => {

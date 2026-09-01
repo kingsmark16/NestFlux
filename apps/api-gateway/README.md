@@ -119,13 +119,14 @@ Use `prisma:migrate:deploy` only outside local development. It applies committed
 
 The gateway validates these environment variables before it opens an HTTP port. The root `.env` file must define `DATABASE_URL` and `RABBITMQ_URL` during local development.
 
-| Variable       | Default       | Accepted value                            |
-| -------------- | ------------- | ----------------------------------------- |
-| `NODE_ENV`     | `development` | `development`, `test`, or `production`    |
-| `PORT`         | `3000`        | An integer from `1` through `65535`       |
-| `API_PREFIX`   | `api/v1`      | Lowercase path segments, such as `api/v2` |
-| `DATABASE_URL` | None          | A PostgreSQL connection URL               |
-| `RABBITMQ_URL` | None          | An `amqp://` or `amqps://` broker URL     |
+| Variable               | Default            | Accepted value                               |
+| ---------------------- | ------------------ | -------------------------------------------- |
+| `NODE_ENV`             | `development`      | `development`, `test`, or `production`       |
+| `PORT`                 | `3000`             | An integer from `1` through `65535`          |
+| `API_PREFIX`           | `api/v1`           | Lowercase path segments, such as `api/v2`    |
+| `DATABASE_URL`         | None               | A PostgreSQL connection URL                  |
+| `RABBITMQ_URL`         | None               | An `amqp://` or `amqps://` broker URL        |
+| `RABBITMQ_ASSET_QUEUE` | `asset-processing` | A lowercase queue name with `.`, `_`, or `-` |
 
 Set custom values in PowerShell before starting the service:
 
@@ -208,7 +209,9 @@ The operation returns `404` when the asset does not exist. It returns `409` when
 
 ## Create asset upload events
 
-`AssetEventService` maps a trusted Prisma asset record to the shared `AssetUploadedEvent` contract. It generates a unique event ID and an ISO 8601 timestamp. The service does not connect to RabbitMQ or publish the event yet.
+`AssetEventService` maps a trusted Prisma asset record to the shared `AssetUploadedEvent` contract. It generates a unique event ID and an ISO 8601 timestamp.
+
+`AssetEventsPublisher` connects through the Nest RabbitMQ client and emits typed events with the `asset.uploaded` pattern. The client declares a durable queue and publishes persistent messages. Asset creation does not call the publisher yet. A later lesson will add a transactional outbox so a database write cannot succeed without recording its event for delivery.
 
 Build the shared contract before checking or building the Gateway from a clean workspace:
 
@@ -247,6 +250,9 @@ The generated source has these entry points:
 - `src/config/rabbitmq.config.ts`: exposes the RabbitMQ connection URL
 - `src/config/environment.validation.ts`: validates startup variables
 - `src/configure-http-app.ts`: applies the route prefix and global validation
+- `src/messaging/messaging.module.ts`: configures and exports the RabbitMQ client
+- `src/messaging/asset-event.publisher.ts`: publishes typed asset events
+- `src/messaging/messaging.tokens.ts`: identifies the injected RabbitMQ client
 - `src/database/database.module.ts`: shares database access with feature modules
 - `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
 - `src/assets/assets.module.ts`: owns asset record behavior
@@ -265,4 +271,4 @@ Future features will use focused Nest modules instead of adding unrelated behavi
 
 ## Treat deployment as unfinished
 
-Do not deploy the gateway as a production service yet. Later lessons will add authentication, RabbitMQ messaging, image processing, containerization, and production infrastructure.
+Do not deploy the gateway as a production service yet. Later lessons will add reliable event delivery, a RabbitMQ worker, authentication, image processing, containerization, and production infrastructure.

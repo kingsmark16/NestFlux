@@ -1,0 +1,1 @@
+export const ASSET_EVENTS_CLIENT = Symbol('ASSET_EVENTS_CLIENT');
