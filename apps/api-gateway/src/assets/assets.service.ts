@@ -7,17 +7,40 @@ import { randomUUID } from 'node:crypto';
 import { AssetStatus } from '../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { CreateAssetDto } from './dto/create-asset.dto.js';
+import { AssetEventService } from './asset-events.service.js';
 
 @Injectable()
 export class AssetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly assetEventService: AssetEventService,
+  ) {}
 
-  create(createAssetDto: CreateAssetDto) {
-    return this.prisma.asset.create({
-      data: {
-        ...createAssetDto,
-        storageKey: `assets/${randomUUID()}`,
-      },
+  async create(createAssetDto: CreateAssetDto) {
+    return this.prisma.$transaction(async (transaction) => {
+      const asset = await transaction.asset.create({
+        data: {
+          ...createAssetDto,
+          storageKey: `assets/${randomUUID()}`,
+        },
+      });
+
+      const event = this.assetEventService.createAssetUploadedEvent(asset);
+
+      await transaction.outboxEvent.create({
+        data: {
+          id: event.eventId,
+          type: event.type,
+          payload: {
+            ...event,
+            data: {
+              ...event.data,
+            },
+          },
+        },
+      });
+
+      return asset;
     });
   }
 

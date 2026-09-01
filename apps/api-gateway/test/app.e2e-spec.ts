@@ -11,6 +11,7 @@ describe('API Gateway (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let createdAssetId: string | undefined;
+  let createdOutboxEventId: string | undefined;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -28,8 +29,16 @@ describe('API Gateway (e2e)', () => {
   });
 
   afterAll(async () => {
+    if (createdOutboxEventId) {
+      await prisma.outboxEvent.deleteMany({
+        where: {
+          id: createdOutboxEventId,
+        },
+      });
+    }
+
     if (createdAssetId) {
-      await prisma.asset.delete({
+      await prisma.asset.deleteMany({
         where: {
           id: createdAssetId,
         },
@@ -53,7 +62,7 @@ describe('API Gateway (e2e)', () => {
       .expect({ status: 'ok' });
   });
 
-  it('/api/v1/assets (POST) creates and lists an asset', async () => {
+  it('/api/v1/assets (POST) creates an asset and its outbox event', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/api/v1/assets')
       .send({
@@ -63,9 +72,11 @@ describe('API Gateway (e2e)', () => {
       })
       .expect(201);
 
-    createdAssetId = createResponse.body.id;
+    const assetId = createResponse.body.id as string;
+    createdAssetId = assetId;
 
     expect(createResponse.body).toMatchObject({
+      id: assetId,
       originalFilename: 'sunset.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 1024,
@@ -74,7 +85,7 @@ describe('API Gateway (e2e)', () => {
     });
 
     const findResponse = await request(app.getHttpServer())
-      .get(`/api/v1/assets/${createdAssetId}`)
+      .get(`/api/v1/assets/${assetId}`)
       .expect(200);
 
     expect(findResponse.body).toMatchObject({
@@ -93,6 +104,39 @@ describe('API Gateway (e2e)', () => {
         }),
       ]),
     );
+
+    const outboxEvent = await prisma.outboxEvent.findFirst({
+      where: {
+        type: 'asset.uploaded',
+        payload: {
+          path: ['data', 'assetId'],
+          equals: assetId,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    createdOutboxEventId = outboxEvent?.id;
+
+    expect(outboxEvent).toMatchObject({
+      type: 'asset.uploaded',
+      status: 'PENDING',
+      attempts: 0,
+      payload: {
+        type: 'asset.uploaded',
+        eventId: expect.any(String),
+        occurredAt: expect.any(String),
+        data: {
+          assetId,
+          storageKey: createResponse.body.storageKey,
+          originalFilename: 'sunset.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1024,
+        },
+      },
+    });
   });
 
   it('/api/v1/assets (POST) rejects invalid input', () => {

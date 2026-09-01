@@ -170,7 +170,7 @@ Liveness returns `200` while the Nest process is running. Readiness runs `SELECT
 
 ## Create and list asset records
 
-The asset endpoints store upload metadata in PostgreSQL. They do not accept file bytes, create files, authenticate callers, or publish RabbitMQ jobs yet.
+The asset endpoints store upload metadata in PostgreSQL. The create operation also records a pending outbox event in the same transaction. These endpoints do not accept file bytes, create files, authenticate callers, or publish RabbitMQ jobs yet.
 
 Start the Gateway, then create an asset record from a second PowerShell terminal:
 
@@ -207,11 +207,13 @@ Invalid metadata or extra properties return `400`. `sizeBytes` must be an intege
 
 The operation returns `404` when the asset does not exist. It returns `409` when another process has already changed the asset from `PENDING`. This prevents two workers from both claiming the same asset.
 
-## Create asset upload events
+## Record asset upload events
 
 `AssetEventService` maps a trusted Prisma asset record to the shared `AssetUploadedEvent` contract. It generates a unique event ID and an ISO 8601 timestamp.
 
-`AssetEventsPublisher` connects through the Nest RabbitMQ client and emits typed events with the `asset.uploaded` pattern. The client declares a durable queue and publishes persistent messages. Asset creation does not call the publisher yet. A later lesson will add a transactional outbox so a database write cannot succeed without recording its event for delivery.
+`AssetsService.create()` stores the asset and its `OutboxEvent` in one Prisma transaction. The outbox row uses the event ID as its primary key and stores the complete event as JSON. PostgreSQL rolls back both inserts if either insert fails.
+
+`AssetEventsPublisher` connects through the Nest RabbitMQ client and emits typed events with the `asset.uploaded` pattern. The client declares a durable queue and publishes persistent messages. No dispatcher calls the publisher yet, so new outbox rows remain `PENDING` until the dispatch lesson.
 
 Build the shared contract before checking or building the Gateway from a clean workspace:
 
@@ -257,13 +259,13 @@ The generated source has these entry points:
 - `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
 - `src/assets/assets.module.ts`: owns asset record behavior
 - `src/assets/assets.controller.ts`: exposes the asset HTTP routes
-- `src/assets/assets.service.ts`: creates and lists Gateway-owned asset records
+- `src/assets/assets.service.ts`: creates assets with outbox events and reads asset records
 - `src/assets/asset-events.service.ts`: maps asset records to shared event contracts
 - `src/assets/dto/create-asset.dto.ts`: validates asset creation requests
 - `src/health/health.module.ts`: owns the health feature
 - `src/health/health.controller.ts`: exposes liveness and readiness routes
 - `prisma.config.ts`: loads the root database URL for Prisma commands
-- `prisma/schema.prisma`: defines the Gateway-owned data model
+- `prisma/schema.prisma`: defines asset records and the transactional outbox
 - `prisma/migrations/`: records ordered PostgreSQL schema changes
 - `test/app.e2e-spec.ts`: tests the HTTP request path
 
