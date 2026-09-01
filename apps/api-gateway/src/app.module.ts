@@ -7,6 +7,8 @@ import { databaseConfig } from './config/database.config.js';
 import { AssetsModule } from './assets/assets.module.js';
 import { rabbitmqConfig } from './config/rabbitmq.config.js';
 import { OutboxModule } from './outbox/outbox.module.js';
+import { outboxConfig } from './config/outbox.config.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -14,9 +16,10 @@ import { OutboxModule } from './outbox/outbox.module.js';
       isGlobal: true,
       cache: true,
       envFilePath: '../../.env',
-      load: [appConfig, databaseConfig, rabbitmqConfig],
+      load: [appConfig, databaseConfig, rabbitmqConfig, outboxConfig],
       validationSchema: environmentValidationSchema,
     }),
+    ScheduleModule.forRoot(),
     HealthModule,
     AssetsModule,
     OutboxModule,

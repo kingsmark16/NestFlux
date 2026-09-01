@@ -119,14 +119,18 @@ Use `prisma:migrate:deploy` only outside local development. It applies committed
 
 The gateway validates these environment variables before it opens an HTTP port. The root `.env` file must define `DATABASE_URL` and `RABBITMQ_URL` during local development.
 
-| Variable               | Default            | Accepted value                               |
-| ---------------------- | ------------------ | -------------------------------------------- |
-| `NODE_ENV`             | `development`      | `development`, `test`, or `production`       |
-| `PORT`                 | `3000`             | An integer from `1` through `65535`          |
-| `API_PREFIX`           | `api/v1`           | Lowercase path segments, such as `api/v2`    |
-| `DATABASE_URL`         | None               | A PostgreSQL connection URL                  |
-| `RABBITMQ_URL`         | None               | An `amqp://` or `amqps://` broker URL        |
-| `RABBITMQ_ASSET_QUEUE` | `asset-processing` | A lowercase queue name with `.`, `_`, or `-` |
+| Variable                  | Default            | Accepted value                               |
+| ------------------------- | ------------------ | -------------------------------------------- |
+| `NODE_ENV`                | `development`      | `development`, `test`, or `production`       |
+| `PORT`                    | `3000`             | An integer from `1` through `65535`          |
+| `API_PREFIX`              | `api/v1`           | Lowercase path segments, such as `api/v2`    |
+| `DATABASE_URL`            | None               | A PostgreSQL connection URL                  |
+| `RABBITMQ_URL`            | None               | An `amqp://` or `amqps://` broker URL        |
+| `RABBITMQ_ASSET_QUEUE`    | `asset-processing` | A lowercase queue name with `.`, `_`, or `-` |
+| `OUTBOX_DISPATCH_ENABLED` | `true`             | A boolean                                    |
+| `OUTBOX_POLL_INTERVAL_MS` | `1000`             | An integer from `100` through `60000`        |
+| `OUTBOX_BATCH_SIZE`       | `10`               | An integer from `1` through `100`            |
+| `OUTBOX_CLAIM_TTL_MS`     | `60000`            | An integer from `1000` through `3600000`     |
 
 Set custom values in PowerShell before starting the service:
 
@@ -170,7 +174,7 @@ Liveness returns `200` while the Nest process is running. Readiness runs `SELECT
 
 ## Create and list asset records
 
-The asset endpoints store upload metadata in PostgreSQL. The create operation also records a pending outbox event in the same transaction. These endpoints do not accept file bytes, create files, authenticate callers, or publish RabbitMQ jobs yet.
+The asset endpoints store upload metadata in PostgreSQL. The create operation also records a pending outbox event in the same transaction. These endpoints do not accept file bytes, create files, or authenticate callers yet. The background outbox scheduler publishes recorded events to RabbitMQ.
 
 Start the Gateway, then create an asset record from a second PowerShell terminal:
 
@@ -217,11 +221,13 @@ The operation returns `404` when the asset does not exist. It returns `409` when
 
 ## Dispatch recorded asset events
 
-`OutboxDispatcher.dispatchBatch()` claims up to 10 pending events by default. A claim changes the event to `PROCESSING`, records its lock time, and increments its attempt count. Matching the lock time on later updates prevents an expired publisher from overwriting a newer claim.
+`OutboxScheduler` runs once during application startup and every `OUTBOX_POLL_INTERVAL_MS` after that. Each cycle releases expired claims before calling `OutboxDispatcher.dispatchBatch()`. Set `OUTBOX_DISPATCH_ENABLED=false` to disable automatic dispatch in a process.
 
-Successful publication changes the event to `PUBLISHED`. Failed publication returns it to `PENDING` with an exponential retry delay capped at 60 seconds. Abandoned claims can return to `PENDING` after their lease expires.
+The scheduler skips a tick when its previous cycle is still running. This prevents overlapping database and RabbitMQ work inside one Gateway process. `OUTBOX_CLAIM_TTL_MS` controls when another cycle may recover an abandoned `PROCESSING` event.
 
-The dispatcher does not run on a timer yet and has no public HTTP route. New events remain `PENDING` until application scheduling calls `dispatchBatch()`.
+`OutboxDispatcher.dispatchBatch()` claims up to `OUTBOX_BATCH_SIZE` pending events. A claim changes the event to `PROCESSING`, records its lock time, and increments its attempt count. Matching the lock time on later updates prevents an expired publisher from overwriting a newer claim.
+
+Successful publication changes the event to `PUBLISHED`. Failed publication returns it to `PENDING` with an exponential retry delay capped at 60 seconds. The dispatcher has no public HTTP route.
 
 Build the shared contract before checking or building the Gateway from a clean workspace:
 
@@ -258,6 +264,7 @@ The generated source has these entry points:
 - `src/config/app.config.ts`: exposes namespaced application configuration
 - `src/config/database.config.ts`: exposes the PostgreSQL connection URL
 - `src/config/rabbitmq.config.ts`: exposes the RabbitMQ connection URL
+- `src/config/outbox.config.ts`: exposes automatic outbox scheduling settings
 - `src/config/environment.validation.ts`: validates startup variables
 - `src/configure-http-app.ts`: applies the route prefix and global validation
 - `src/messaging/messaging.module.ts`: configures and exports the RabbitMQ client
@@ -266,6 +273,7 @@ The generated source has these entry points:
 - `src/outbox/outbox.module.ts`: owns outbox claiming and dispatch behavior
 - `src/outbox/outbox.repository.ts`: applies concurrency-safe outbox state changes
 - `src/outbox/outbox-dispatcher.service.ts`: publishes bounded outbox batches
+- `src/outbox/outbox-scheduler.service.ts`: schedules dispatch and recovers stale claims
 - `src/database/database.module.ts`: shares database access with feature modules
 - `src/database/prisma.service.ts`: owns the Prisma client and its shutdown lifecycle
 - `src/assets/assets.module.ts`: owns asset record behavior
@@ -284,4 +292,4 @@ Future features will use focused Nest modules instead of adding unrelated behavi
 
 ## Treat deployment as unfinished
 
-Do not deploy the gateway as a production service yet. Later lessons will add dispatch scheduling, a RabbitMQ worker, authentication, image processing, containerization, and production infrastructure.
+Do not deploy the gateway as a production service yet. Later lessons will add a RabbitMQ worker, authentication, image processing, containerization, and production infrastructure.

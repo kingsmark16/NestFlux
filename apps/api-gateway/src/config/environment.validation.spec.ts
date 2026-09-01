@@ -19,6 +19,29 @@ describe('environmentValidationSchema', () => {
       DATABASE_URL: databaseUrl,
       RABBITMQ_URL: rabbitmqUrl,
       RABBITMQ_ASSET_QUEUE: 'asset-processing',
+      OUTBOX_DISPATCH_ENABLED: true,
+      OUTBOX_POLL_INTERVAL_MS: 1000,
+      OUTBOX_BATCH_SIZE: 10,
+      OUTBOX_CLAIM_TTL_MS: 60_000,
+    });
+  });
+
+  it('coerces valid outbox settings from environment strings', () => {
+    const { error, value } = environmentValidationSchema.validate({
+      DATABASE_URL: databaseUrl,
+      RABBITMQ_URL: rabbitmqUrl,
+      OUTBOX_DISPATCH_ENABLED: 'false',
+      OUTBOX_POLL_INTERVAL_MS: '2500',
+      OUTBOX_BATCH_SIZE: '25',
+      OUTBOX_CLAIM_TTL_MS: '120000',
+    });
+
+    expect(error).toBeUndefined();
+    expect(value).toMatchObject({
+      OUTBOX_DISPATCH_ENABLED: false,
+      OUTBOX_POLL_INTERVAL_MS: 2500,
+      OUTBOX_BATCH_SIZE: 25,
+      OUTBOX_CLAIM_TTL_MS: 120_000,
     });
   });
 
@@ -67,6 +90,38 @@ describe('environmentValidationSchema', () => {
         DATABASE_URL: databaseUrl,
         RABBITMQ_URL: rabbitmqUrl,
         RABBITMQ_ASSET_QUEUE: 'Asset Processing',
+      },
+    ],
+    [
+      'OUTBOX_DISPATCH_ENABLED',
+      {
+        DATABASE_URL: databaseUrl,
+        RABBITMQ_URL: rabbitmqUrl,
+        OUTBOX_DISPATCH_ENABLED: 'sometimes',
+      },
+    ],
+    [
+      'OUTBOX_POLL_INTERVAL_MS',
+      {
+        DATABASE_URL: databaseUrl,
+        RABBITMQ_URL: rabbitmqUrl,
+        OUTBOX_POLL_INTERVAL_MS: 99,
+      },
+    ],
+    [
+      'OUTBOX_BATCH_SIZE',
+      {
+        DATABASE_URL: databaseUrl,
+        RABBITMQ_URL: rabbitmqUrl,
+        OUTBOX_BATCH_SIZE: 101,
+      },
+    ],
+    [
+      'OUTBOX_CLAIM_TTL_MS',
+      {
+        DATABASE_URL: databaseUrl,
+        RABBITMQ_URL: rabbitmqUrl,
+        OUTBOX_CLAIM_TTL_MS: 999,
       },
     ],
   ])('rejects an invalid %s value', (field, environment) => {

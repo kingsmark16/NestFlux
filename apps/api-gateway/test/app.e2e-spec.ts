@@ -14,6 +14,8 @@ describe('API Gateway (e2e)', () => {
   let createdOutboxEventId: string | undefined;
 
   beforeAll(async () => {
+    vi.stubEnv('OUTBOX_DISPATCH_ENABLED', 'false');
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -46,6 +48,7 @@ describe('API Gateway (e2e)', () => {
     }
 
     await app.close();
+    vi.unstubAllEnvs();
   });
 
   it('/api/v1/health/live (GET)', () => {

@@ -17,4 +17,16 @@ export const environmentValidationSchema = Joi.object({
   RABBITMQ_ASSET_QUEUE: Joi.string()
     .pattern(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/)
     .default('asset-processing'),
+  OUTBOX_DISPATCH_ENABLED: Joi.boolean().default(true),
+  OUTBOX_POLL_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(100)
+    .max(60_000)
+    .default(1000),
+  OUTBOX_BATCH_SIZE: Joi.number().integer().min(1).max(100).default(10),
+  OUTBOX_CLAIM_TTL_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(3_600_000)
+    .default(60_000),
 });
